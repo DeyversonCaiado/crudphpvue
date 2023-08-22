@@ -12,25 +12,54 @@ $postjson = json_decode(file_get_contents('php://input'),true);
 $today = date('Y-m-d H:i:s');
 
 if($postjson['operacao']=="gravar"){
-    $cekemail = mysqli_fetch_array(mysqli_query($mysqli,"select nome from pessoas where nome='$postjson[nome]'"));
+    $cekemail = mysqli_query($mysqli,"select nome from pessoas where nome='$postjson[nome]'");
     
     if ($postjson['codigo']=='') {
-        if($cekemail['nome']== $postjson['nome']){
-            $result = json_encode(array
-            ('success'=>false, 
-            'msg'=>'O nome já está cadastrado'));
+        if($cekemail->num_rows){
+            $cekemail = mysqli_fetch_array($cekemail);
+            if ($cekemail['nome']== $postjson['nome']) {
+
+                $result = json_encode(array
+                ('success'=>false, 
+                'msg'=>'O nome já está cadastrado'));
+            }
         }else{
+            $mysqli->autocommit(FALSE);
 
             $sql = "insert into pessoas set 
                 nome     = '$postjson[nome]',
-                endereco        = '$postjson[endereco]',
-                contatos        = '".json_encode($postjson['contatos'])."'";
+                endereco        = '$postjson[endereco]'";
                 //echo $sql;
-            $insert = mysqli_query($mysqli,$sql);
 
+            if($mysqli->query($sql)){
 
-            if($insert){
-                $result = json_encode(array('success'=>true, 'msg'=>'Registrado com sucesso!'));
+               
+                $registro_pai_id = $mysqli->insert_id;
+
+                $registro_filho_sql = "INSERT INTO pessoas_contatos (codigopessoa,tipo, nome,telefone) VALUES";
+
+                for ($i=0; $i < count($postjson['contatos']); $i++) { 
+                    $registro_filho_sql .="('$registro_pai_id'
+                                            ,'".$postjson['contatos'][$i]['tipo']."'
+                                            ,'".$postjson['contatos'][$i]['nome']."'
+                                            ,'".$postjson['contatos'][$i]['telefone']."'
+                                            ),";
+                }
+                                     
+                $registro_filho_sql= substr($registro_filho_sql,0,-1);
+                $registro_filho_sql.=";";
+
+                if ($mysqli->query($registro_filho_sql)) {
+                    $result = json_encode(array('success'=>true, 'msg'=>'Registrado com sucesso!'));
+                    $mysqli->commit();
+                }else {
+                    $mysqli->rollback();
+                    $result = json_encode(array
+                    ('success'=>false, 
+                    'msg'=>'Não foi possivel registrar! Erro: '.$mysqli->error));
+                }
+
+                
                 
             }else{
                 $result = json_encode(array
@@ -39,19 +68,58 @@ if($postjson['operacao']=="gravar"){
             }
         }
     }else {
-        $update = mysqli_query($mysqli,"update pessoas set 
-					nome     = '$postjson[nome]',
-					endereco = '$postjson[endereco]',
-					contatos    = '".json_encode($postjson['contatos'])."'
-					where codigo = '$postjson[codigo]'");
 
-				if($update){
-					$result = json_encode(array('success'=>true, 'msg'=>'Atualizado com sucesso!'));
+        $mysqli->autocommit(FALSE);
+
+
+        $sql = "update pessoas set 
+					nome     = '$postjson[nome]',
+					endereco = '$postjson[endereco]'
+					where codigo = '$postjson[codigo]'";
+
+
+				if($mysqli->query($sql)){
+
+                    try {
+                        $mysqli->query("delete from pessoas_contatos where codigopessoa = '$postjson[codigo]'");
+
+                        $registro_pai_id = $postjson['codigo'];
+
+                        $registro_filho_sql = "INSERT INTO pessoas_contatos (codigopessoa,tipo, nome,telefone) VALUES";
+
+                        for ($i=0; $i < count($postjson['contatos']); $i++) { 
+                            $registro_filho_sql .="('$registro_pai_id'
+                                                    ,'".$postjson['contatos'][$i]['tipo']."'
+                                                    ,'".$postjson['contatos'][$i]['nome']."'
+                                                    ,'".$postjson['contatos'][$i]['telefone']."'
+                                                    ),";
+                        }
+                                            
+                        $registro_filho_sql= substr($registro_filho_sql,0,-1);
+                        $registro_filho_sql.=";";
+
+                        $mysqli->query($registro_filho_sql);
+
+                        $mysqli->commit();
+
+                        $result = json_encode(array('success'=>true, 'msg'=>'Atualizado com sucesso!'));
+                    } catch (Exception $e) {
+
+                        $mysqli->rollback();
+
+                        $result = json_encode(array
+                        ('success'=>false, 
+                        'msg'=>'Não foi possivel atualizar! Erro: '.$e->getMessage()));
+                    }
+
+
+
+					
 					
 				}else{
 					$result = json_encode(array
 					('success'=>false, 
-					'msg'=>'Não foi possivel atualizar! Erro: '.$connection->error));
+					'msg'=>'Não foi possivel atualizar! Erro: '.$mysqli->error));
 				}
     }
     
@@ -82,16 +150,26 @@ if($postjson['operacao']=="gravar"){
 
 	 echo $result;
 }elseif($postjson['operacao']=="deletarpessoa"){
-		
-    $query = mysqli_query($mysqli,"delete from pessoas
-    where codigo = $postjson[codigo]");
 
-    if($query){
-        $result = json_encode(array('success'=>true,'result'=>'Pessoa excluida'));
-        
-    }else{
+    $mysqli->autocommit(FALSE);
+		
+    try {
+
+        $mysqli->query("delete from pessoas_contatos where codigopessoa = '$postjson[codigo]'");
+
+        $mysqli->query("delete from pessoas where codigo = '$postjson[codigo]'");
+
+        $mysqli->commit();
+
+        $result = json_encode(array('success'=>true, 'result'=>'Pessoa excluida'));
+
+    } catch (Exception $e) {
+
+        $mysqli->rollback();
+
         $result = json_encode(array
-        ('success'=>false,'result'=>'Nao foi possivel excluir. Erro:'.$connection->error));
+        ('success'=>false, 
+        'result'=>'Nao foi possivel excluir. Erro:' .$e->getMessage()));
     }
     
 
@@ -104,11 +182,23 @@ if($postjson['operacao']=="gravar"){
     where codigo = $postjson[codigo]");
 
     while($rows = mysqli_fetch_array($query)){	
-        $data = array( 
+        
+            $sql = "select * from pessoas_contatos where codigopessoa= '$postjson[codigo]'";
+            $qry = mysqli_query($mysqli,$sql);
+            $data2 = array();
+            while ($rws = mysqli_fetch_array($qry)) {
+                $data2[] = array( 
+                    'tipo'     => $rws['tipo'],
+                    'nome'        => $rws['nome'],
+                    'telefone'    => $rws['telefone'],
+                    ); 
+            }
+
+            $data = array( 
             'codigo'     => $rows['codigo'],
             'nome'        => $rows['nome'],
             'endereco'    => $rows['endereco'],
-            'contatos' => $rows['contatos']
+            'contatos'    => $data2
             );
     }
 
@@ -120,7 +210,7 @@ if($postjson['operacao']=="gravar"){
         ('success'=>false));
     }
     
-
+ $mysqli->close();
  echo $result;
 
 }

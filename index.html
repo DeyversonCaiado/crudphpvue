@@ -302,7 +302,7 @@
                             this.codigo = response.data.result.codigo;
                             this.nome = response.data.result.nome;
                             this.endereco = response.data.result.endereco;
-                            this.contatos = JSON.parse(response.data.result.contatos);
+                            this.contatos = response.data.result.contatos;
                             $('#exampleModal').modal('show');
 
                             }else{

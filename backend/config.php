@@ -6,9 +6,9 @@
     // DB
     $DB_DRIVER='mysqli';
     $DB_HOSTNAME='localhost';
-    $DB_USERNAME='u182511529_clique';
-    $DB_PASSWORD='Campos1@2ewq';
-    $DB_DATABASE='u182511529_clique';
+    $DB_USERNAME='root';
+    $DB_PASSWORD='';
+    $DB_DATABASE='teste';
     $DB_PORT='3306';
     $DB_PREFIX='';
 

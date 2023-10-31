@@ -177,7 +177,7 @@
                     document.getElementById('enviadados').disabled = true;
 
                     console.log(dadosenvio);
-                    axios.post('https://clique.pet/teste/backend/index.php', dadosenvio,{
+                    axios.post('https://seudominio/teste/backend/index.php', dadosenvio,{
                             timeout: 2000 // Timeout em milissegundos (2 segundos)
                         })
                         .then(response => {
@@ -212,7 +212,7 @@
                       start:0,
                       limit:50
                     }
-                  axios.post('https://clique.pet/teste/backend/index.php',dadosenvio,{
+                  axios.post('https://seudominio.com/teste/backend/index.php',dadosenvio,{
                             timeout: 2000 // Timeout em milissegundos (2 segundos)
                         })
                         .then(response => {
@@ -248,7 +248,7 @@
                     };
                     
                     if (confirm("Essa operação nao pode ser desfeita, deseja continuar?") == true) {
-                      axios.post('https://clique.pet/teste/backend/index.php',dadosenvio,{
+                      axios.post('https://seudominio.com/teste/backend/index.php',dadosenvio,{
                             timeout: 2000 // Timeout em milissegundos (2 segundos)
                         })
                         .then(response => {
@@ -290,7 +290,7 @@
                     };
                     
                     
-                      axios.post('https://clique.pet/teste/backend/index.php',dadosenvio,{
+                      axios.post('https://seudominio.com/teste/backend/index.php',dadosenvio,{
                             timeout: 2000 // Timeout em milissegundos (2 segundos)
                         })
                         .then(response => {
